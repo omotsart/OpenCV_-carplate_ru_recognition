@@ -1,0 +1,70 @@
+import cv2
+import pytesseract
+
+# Указать деррикторию расположения tesseract.exe
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+face_cascade_db = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_russian_plate_number.xml")
+
+
+#   Обнаруживает номерные знаки на входном изображении и возвращает список изображений обнаруженных номерных знаков в градациях серого.
+def detect_license_plate(img):
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    faces = face_cascade_db.detectMultiScale(img_gray, 1.1, 19)
+    detected_numbers = []
+    for (x, y, w, h) in faces:
+        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        carplate_img_rgb = img[y:y + h, x:x + w]
+        carplate_extract_img_gray = cv2.cvtColor(carplate_img_rgb, cv2.COLOR_RGB2GRAY)
+        detected_numbers.append(carplate_extract_img_gray)
+
+    return detected_numbers
+
+#   Распознает номерные знаки из списка изображений номерных знаков в градациях серого с помощью механизма распознавания текста Tesseract.
+def recognize_license_plate(detected_numbers):
+    detected_plate_numbers = []
+    for carplate_extract_img_gray in detected_numbers:
+        config = (r"--oem 3 --psm 13")
+        carplate_text = pytesseract.image_to_string(carplate_extract_img_gray, config=config)
+        detected_plate_number = "".join(carplate_text.split())
+        detected_plate_numbers.append(detected_plate_number)
+        print("Detected license plate number: ", detected_plate_number)
+
+    return detected_plate_numbers
+
+#   Сравнивает обнаруженные номерные знаки со списком ожидаемых номеров, чтобы определить, найдено ли совпадение.
+def compare_license_plate_numbers(detected_plate_numbers, expected_numbers):
+    for detected_plate_number in detected_plate_numbers:
+        if detected_plate_number in expected_numbers:
+            print("Номер Т720ВТ опознан!!!!!!!!!!!!!!!!!!!!", detected_plate_number)
+            return True
+    return False
+
+#  Захватывает видео с камеры, определяет номерные знаки в каждом кадре, выполняет OCR для распознавания номеров,
+#  и сравнивает их со списком ожидаемых чисел, пока не будет найдено совпадение.
+def main():
+    expected_numbers = ["T720DT26", "T7208T26", "T720BT26h", "77208726","77208726h","17720812h","177208128)",
+                        "[17208726]","72087126)","7208726)","rr720BT26)",
+                        "72087(26)","1772087126)","17208726.","T720eT26R","1772087126)","(77208726","rr720BT26)",]
+    cap = cv2.VideoCapture(0)
+
+    while True:
+        success, img = cap.read()
+        detected_numbers = detect_license_plate(img)
+        detected_plate_numbers = recognize_license_plate(detected_numbers)
+        matched = compare_license_plate_numbers(detected_plate_numbers, expected_numbers)
+
+        cv2.imshow('rez', img)
+        if cv2.waitKey(1) & 0xff == ord('q'):
+            break
+
+        if matched:
+
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == '__main__':
+    main()
